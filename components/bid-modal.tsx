@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Gavel } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { bidAPI } from "@/lib/api"
 
 interface BidModalProps {
   productTitle: string
   currentPrice: number
-  productId: number
+  productId: string
 }
 
 export function BidModal({ productTitle, currentPrice, productId }: BidModalProps) {
@@ -25,9 +26,10 @@ export function BidModal({ productTitle, currentPrice, productId }: BidModalProp
     note: "",
   })
   const [isOpen, setIsOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (Number(bidData.bidPrice) <= currentPrice) {
@@ -39,17 +41,31 @@ export function BidModal({ productTitle, currentPrice, productId }: BidModalProp
       return
     }
 
-    // Handle bid submission
-    console.log("Bid submitted:", { ...bidData, productId })
+    setLoading(true)
+    try {
+      await bidAPI.create({
+        product_id: productId,
+        bidder_name: bidData.name,
+        bidder_contact: bidData.phone,
+        bid_price: Number(bidData.bidPrice),
+      })
 
-    toast({
-      title: "Bid Placed Successfully! 🎯",
-      description: `Your bid of ₹${bidData.bidPrice} has been submitted to the seller`,
-    })
+      toast({
+        title: "Bid Placed Successfully! 🎯",
+        description: `Your bid of ₹${bidData.bidPrice} has been submitted to the seller`,
+      })
 
-    // Reset form and close modal
-    setBidData({ name: "", phone: "", bidPrice: "", note: "" })
-    setIsOpen(false)
+      setBidData({ name: "", phone: "", bidPrice: "", note: "" })
+      setIsOpen(false)
+    } catch (error) {
+      toast({
+        title: "Bid Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -123,8 +139,8 @@ export function BidModal({ productTitle, currentPrice, productId }: BidModalProp
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="iitm-gradient text-white hover:opacity-90">
-              Submit Bid
+            <Button type="submit" className="iitm-gradient text-white hover:opacity-90" disabled={loading}>
+              {loading ? "Submitting..." : "Submit Bid"}
             </Button>
           </div>
         </form>
